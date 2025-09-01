@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STUDENT
+}
+
+enum SectionType {
+  RW
+  MATH
+}
+
+enum QuestionType {
+  MC
+  SPR
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  name         String?
+  passwordHash String
+  role         Role      @default(STUDENT)
+  createdAt    DateTime  @default(now())
+  attempts     Attempt[]
+}
+
+model Exam {
+  id        Int       @id @default(autoincrement())
+  code      String    @unique
+  title     String
+  createdAt DateTime  @default(now())
+  sections  Section[]
+}
+
+model Section {
+  id            Int          @id @default(autoincrement())
+  examId        Int
+  exam          Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  type          SectionType
+  order         Int
+  title         String?
+  module        Int?
+  timerSeconds  Int?
+  questions     Question[]
+  passages      Passage[]
+}
+
+model Passage {
+  id        Int     @id @default(autoincrement())
+  sectionId Int
+  section   Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  title     String?
+  text      String
+  questions Question[]
+}
+
+model Question {
+  id                Int           @id @default(autoincrement())
+  sectionId         Int
+  section           Section       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  passageId         Int?
+  passage           Passage?      @relation(fields: [passageId], references: [id])
+  number            Int
+  prompt            String
+  type              QuestionType  @default(MC)
+  choices           Choice[]
+  correctAnswer     String        // For MC: "A"/"B"/"C"/"D"; for SPR: numeric/text
+  explanation       String?
+  skill             String?
+  difficulty        String?
+  calculatorAllowed Boolean?
+  responses         Response[]
+}
+
+model Choice {
+  id         Int      @id @default(autoincrement())
+  questionId Int
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  label      String   // A,B,C,D
+  text       String
+}
+
+model Attempt {
+  id             Int              @id @default(autoincrement())
+  userId         Int
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  examId         Int
+  exam           Exam             @relation(fields: [examId], references: [id], onDelete: Cascade)
+  startedAt      DateTime         @default(now())
+  completedAt    DateTime?
+  rwRaw          Int?
+  mathRaw        Int?
+  sectionAttempts SectionAttempt[]
+}
+
+model SectionAttempt {
+  id               Int       @id @default(autoincrement())
+  attemptId        Int
+  attempt          Attempt   @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  sectionId        Int
+  section          Section   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  module           Int?
+  timeTakenSeconds Int?
+  responses        Response[]
+}
+
+model Response {
+  id               Int      @id @default(autoincrement())
+  sectionAttemptId Int
+  sectionAttempt   SectionAttempt @relation(fields: [sectionAttemptId], references: [id], onDelete: Cascade)
+  questionId       Int
+  question         Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answer           String?
+  correct          Boolean?
+  timeSpentSeconds Int?
+}
